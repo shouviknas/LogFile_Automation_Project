@@ -1,0 +1,164 @@
+# Required dependencies:
+# Run: pip install selenium webdriver-manager python-dotenv
+# Ensure chromedriver.exe is in D:\VSCode\Projects\Automation\Project1_AutomateLogDownloads
+# Create a .env file with:
+# PORTAL_USERNAME=your_username
+# PORTAL_PASSWORD=your_password
+
+try:
+    from selenium import webdriver
+except ImportError:
+    raise ImportError("Selenium not found. Install it with: pip install selenium")
+
+# Necessary imports for browser management and options
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.firefox import GeckoDriverManager
+from apscheduler.schedulers.blocking import BlockingScheduler
+import time
+import os
+from dotenv import load_dotenv
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Load environment variables
+load_dotenv()
+
+# Get credentials from environment variables
+USERNAME = os.getenv("PORTAL_USERNAME")
+PASSWORD = os.getenv("PORTAL_PASSWORD")
+if not USERNAME or not PASSWORD:
+    raise ValueError("Username or password not set in environment variables")
+
+# ChromeDriver path
+CHROME_DRIVER_PATH = r"D:\VSCode\Projects\Automation\Project1_AutomateLogDownloads\chromedriver.exe"
+
+def initialize_driver():
+    # Try Chrome first
+    try:
+        logging.info("Attempting to initialize Chrome WebDriver")
+        chrome_options = ChromeOptions()
+        chrome_options.add_argument("--headless")  # Run in headless mode
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--ignore-certificate-errors")  # Handle SSL issues
+
+        # Set download directory
+        download_dir = os.path.join(os.getcwd(), "downloads")
+        os.makedirs(download_dir, exist_ok=True)
+        prefs = {"download.default_directory": download_dir}
+        chrome_options.add_experimental_option("prefs", prefs)
+
+        # Initialize Chrome with specified driver path
+        driver = webdriver.Chrome(service=ChromeService(CHROME_DRIVER_PATH), options=chrome_options)
+        logging.info("Chrome WebDriver initialized successfully")
+        return driver, "chrome"
+    
+    except Exception as e:
+        logging.error(f"Failed to initialize Chrome WebDriver: {str(e)}")
+        
+        # Fallback to Firefox
+        logging.info("Attempting to initialize Firefox WebDriver")
+        try:
+            firefox_options = FirefoxOptions()
+            firefox_options.add_argument("--headless")
+            firefox_options.add_argument("--disable-gpu")
+            firefox_options.add_argument("--no-sandbox")
+            firefox_options.add_argument("--disable-dev-shm-usage")
+            # Firefox handles SSL warnings differently; no direct equivalent to --ignore-certificate-errors
+            # Set download directory for Firefox
+            download_dir = os.path.join(os.getcwd(), "downloads")
+            os.makedirs(download_dir, exist_ok=True)
+            firefox_options.set_preference("browser.download.folderList", 2)
+            firefox_options.set_preference("browser.download.dir", download_dir)
+            firefox_options.set_preference("browser.helperApps.neverAsk.saveToDisk", "text/csv")
+
+            driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()), options=firefox_options)
+            logging.info("Firefox WebDriver initialized successfully")
+            return driver, "firefox"
+        
+        except Exception as e:
+            logging.error(f"Failed to initialize Firefox WebDriver: {str(e)}")
+            raise Exception("Could not initialize any browser")
+
+def download_csv():
+    try:
+        # Initialize driver (Chrome or Firefox fallback)
+        driver, browser_type = initialize_driver()
+        
+        # Navigate to the website
+        logging.info(f"Navigating to https://10.0.100.62:4444/ using {browser_type}")
+        driver.get("https://10.0.100.62:4444/")
+        
+        # Handle "unsafe" warning (Chrome-specific; Firefox may handle differently)
+        if browser_type == "chrome":
+            try:
+                logging.info("Checking for unsafe warning")
+                WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, "proceed-link"))
+                )
+                proceed_button = driver.find_element(By.ID, "proceed-link")
+                proceed_button.click()
+                logging.info("Bypassed unsafe warning")
+            except:
+                logging.info("No unsafe warning detected or already bypassed")
+        else:
+            # Firefox may auto-accept SSL warnings or require different handling
+            logging.info("Firefox: Assuming SSL warning handled automatically")
+
+        # Wait for login page
+        logging.info("Waiting for login page")
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[1]"))
+        )
+        
+        # Enter credentials and login
+        logging.info("Entering login credentials")
+        username_field = driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[1]")
+        password_field = driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[2]")
+        login_button = driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[3]")
+        
+        username_field.send_keys(USERNAME)
+        password_field.send_keys(PASSWORD)
+        login_button.click()
+        logging.info("Login button clicked")
+        
+        # Wait for portal to load
+        logging.info("Waiting for portal to load")
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'portal')]"))  # Adjust XPath if needed
+        )
+        logging.info("Successfully logged into portal")
+        
+        # Placeholder for CSV download steps
+        # Add your XPath and download logic here
+        logging.info("CSV download steps placeholder")
+        
+    except Exception as e:
+        logging.error(f"Error occurred: {str(e)}")
+    
+    finally:
+        driver.quit()
+        logging.info("WebDriver closed")
+
+def main():
+    # Set up scheduler
+    scheduler = BlockingScheduler()
+    scheduler.add_job(download_csv, 'interval', minutes=20)
+    
+    logging.info("Scheduler started. Running login and download task every 20 minutes...")
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Scheduler stopped")
+
+if __name__ == "__main__":
+    main()

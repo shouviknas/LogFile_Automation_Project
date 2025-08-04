@@ -1,0 +1,84 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+from apscheduler.schedulers.blocking import BlockingScheduler
+import time
+import os
+
+# Set up Chrome options
+chrome_options = Options()
+chrome_options.add_argument("--headless")  # Run in headless mode
+chrome_options.add_argument("--disable-gpu")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+chrome_options.add_argument("--ignore-certificate-errors")  # Handle SSL certificate issues
+
+# Set download directory
+download_dir = os.path.join(os.getcwd(), "downloads")
+os.makedirs(download_dir, exist_ok=True)
+prefs = {"download.default_directory": download_dir}
+chrome_options.add_experimental_option("prefs", prefs)
+
+def download_csv():
+    try:
+        # Initialize WebDriver
+        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        
+        # Navigate to the website
+        driver.get("https://10.0.20.30:5252")
+        
+        # Handle "unsafe" warning (e.g., Chrome's "Your connection is not private")
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.ID, "proceed-link"))
+            )
+            proceed_button = driver.find_element(By.ID, "proceed-link")  # Common ID for Chrome's unsafe warning
+            proceed_button.click()
+        except:
+            print("No unsafe warning detected or already bypassed.")
+        
+        # Wait for login page to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//input[@type='text' or @type='email']"))  # Adjust XPath
+        )
+        
+        # Enter username and password
+        username_field = driver.find_element(By.XPATH, "//input[@type='text' or @type='email']")  # Replace with your username field XPath
+        password_field = driver.find_element(By.XPATH, "//input[@type='password']")  # Replace with your password field XPath
+        login_button = driver.find_element(By.XPATH, "//button[@type='submit']")  # Replace with your login button XPath
+        
+        username_field.send_keys("YOUR_USERNAME")  # Replace with actual username
+        password_field.send_keys("YOUR_PASSWORD")  # Replace with actual password
+        login_button.click()
+        
+        # Wait for portal to load
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'portal')]"))  # Adjust XPath for portal content
+        )
+        
+        # Placeholder for CSV download steps (to be added later)
+        print("Successfully logged into the portal at:", time.ctime())
+        
+    except Exception as e:
+        print(f"Error occurred: {str(e)}")
+    
+    finally:
+        driver.quit()
+
+def main():
+    # Set up scheduler
+    scheduler = BlockingScheduler()
+    scheduler.add_job(download_csv, 'interval', minutes=20)
+    
+    print("Scheduler started. Running login and download task every 20 minutes...")
+    try:
+        scheduler.start()
+    except (KeyboardInterrupt, SystemExit):
+        print("Scheduler stopped.")
+
+if __name__ == "__main__":
+    main()
