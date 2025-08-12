@@ -1,0 +1,256 @@
+!pip install selenium schedule - for run selenium
+
+https://developers.google.com/drive/api/v3/quickstart/python - google drive api Link
+
+Website link - " https://10.0.100.62:4444/ "
+XPATH of Username where automaticaly login with username-" /html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[1] " and the user name - " admin "
+
+XPATH of Username where automaticaly login with Password- " /html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[2] " and the password - " Ipac#2023#@!253 "
+
+XPATH of Username where automaticaly click to press the login option  - " /html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[3] "
+
+After enter the websites Then, 
+
+Click on the Reposrt option and teh Report option XPATH is - " /html/body/div[1]/section[1]/div[3]/nav/section[1]/ul/li[3]/a "
+
+Then go to the Custom option and the custom options XPATH is - " /html/body/div[1]/section[2]/div[1]/div[3]/div/nav/ul/li[5] "
+
+Then click on the Web sureface repot option XPATH is " /html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[1]/div[1]/div[2]/label[1] "
+
+Report type details option XPATH = " /html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[1]/td[2]/label[2] "
+
+serach option domain option XPATH - " /html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[2]/td[2]/div[1]/label" 
+
+Search for users option XPATH is - " /html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[3]/td[2]/label[1] " 
+
+then Click on search option XPATH is - " /html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[10]/td[2]/input "
+
+then click on the CSV file option XPATh " /html/body/div[1]/section[2]/div[2]/div[2]/div[2]/div[2]/div[6]/div/div/label "
+
+then auto meticaly clik the download optio pop-up manu and download to the particuler folder and the downloaded forlder path is -  " D:\F-Log report\LOG "  
+
+
+After that the provided code is ---
+#=====================================================================================================
+import os
+import time
+import datetime
+import schedule
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+# ✅ Modify this to the location of your chromedriver.exe if not in PATH
+CHROMEDRIVER_PATH = os.path.join(os.getcwd(), 'chromedriver.exe')
+
+# ✅ Daily download folder path
+BASE_DOWNLOAD_PATH = r"D:\F-Log report\LOG"
+
+# ✅ Create daily folder if after 5 AM
+def create_daily_folder():
+    now = datetime.datetime.now()
+    date_folder = (now if now.hour >= 5 else now - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    folder_path = os.path.join(BASE_DOWNLOAD_PATH, date_folder)
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+# ✅ Setup Chrome WebDriver
+def get_driver(download_path):
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--ignore-certificate-errors")
+    chrome_options.add_argument("--allow-insecure-localhost")
+    chrome_options.add_argument("--headless=new")  # Optional: remove if you want browser to be visible
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+
+    # Bypass "Your connection is not private" warning
+    chrome_options.add_argument("--ignore-urlfetcher-cert-requests")
+    chrome_options.add_argument("--allow-running-insecure-content")
+
+    # Disable pop-up & set download directory
+    chrome_options.add_experimental_option("prefs", {
+        "download.default_directory": download_path,
+        "download.prompt_for_download": False,
+        "safebrowsing.enabled": True
+    })
+
+    return webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=chrome_options)
+
+# ✅ Main automation function
+def auto_login_and_download():
+    download_dir = create_daily_folder()
+    driver = get_driver(download_dir)
+
+    wait = WebDriverWait(driver, 20)
+
+    try:
+        print(f"[{datetime.datetime.now()}] Opening portal...")
+        driver.get("https://10.0.100.62:4444")
+        
+        # ✅ Wait for login page to load and enter credentials
+        wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[1]"))).send_keys("admin")
+        driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[2]").send_keys("Ipac#2023#@!253")
+        driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[3]").click()
+
+        print("✅ Logged in successfully.")
+
+        # ✅ Navigate through reports
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[1]/div[3]/nav/section[1]/ul/li[3]/a"))).click()  # Report
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[1]/div[3]/div/nav/ul/li[5]"))).click()  # Custom
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[1]/div[1]/div[2]/label[1]"))).click()  # Web surface
+
+        # ✅ Select report filters
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[1]/td[2]/label[2]").click()
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[2]/td[2]/div[1]/label").click()
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[3]/td[2]/label[1]").click()
+
+        # ✅ Click search and download
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[10]/td[2]/input").click()
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[2]/div[2]/div[6]/div/div/label"))).click()
+
+        print(f"⬇️  Report download started. Download directory: {download_dir}")
+        time.sleep(10)  # wait to complete download
+
+    except TimeoutException as te:
+        print("⛔ Timeout occurred:", te)
+    except Exception as e:
+        print("⛔ Unexpected error:", e)
+    finally:
+        driver.quit()
+        print("✅ Task complete. Browser closed.")
+
+# ✅ Schedule every 20 minutes
+schedule.every(20).minutes.do(auto_login_and_download)
+
+print("🚀 Automation Scheduler started. Running every 20 minutes...")
+
+# ✅ Run forever
+while True:
+    schedule.run_pending()
+    time.sleep(1)
+
+
+#==================================================================
+
+
+This will:
+
+Append all status messages with timestamps to a log.txt in the same folder as the script
+
+Also still print logs to the terminal
+
+===========================
+
+import os
+import time
+import datetime
+import schedule
+import logging
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+
+# ✅ Setup Logging
+LOG_FILE = "log.txt"
+logging.basicConfig(
+    filename=LOG_FILE,
+    filemode='a',
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+def log_print(message, level="info"):
+    print(message)
+    if level == "info":
+        logging.info(message)
+    elif level == "error":
+        logging.error(message)
+    elif level == "warning":
+        logging.warning(message)
+
+# ✅ Modify this path as needed
+CHROMEDRIVER_PATH = os.path.join(os.getcwd(), 'chromedriver.exe')
+BASE_DOWNLOAD_PATH = r"D:\F-Log report\LOG"
+
+def create_daily_folder():
+    now = datetime.datetime.now()
+    date_folder = (now if now.hour >= 5 else now - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    folder_path = os.path.join(BASE_DOWNLOAD_PATH, date_folder)
+    os.makedirs(folder_path, exist_ok=True)
+    return folder_path
+
+def get_driver(download_path):
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--ignore-certificate-errors")
+    chrome_options.add_argument("--allow-insecure-localhost")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--headless=new")  # optional
+    chrome_options.add_argument("--allow-running-insecure-content")
+
+    chrome_options.add_experimental_option("prefs", {
+        "download.default_directory": download_path,
+        "download.prompt_for_download": False,
+        "safebrowsing.enabled": True
+    })
+
+    return webdriver.Chrome(service=Service(CHROMEDRIVER_PATH), options=chrome_options)
+
+def auto_login_and_download():
+    download_dir = create_daily_folder()
+    driver = get_driver(download_dir)
+    wait = WebDriverWait(driver, 20)
+
+    try:
+        log_print("Opening portal...")
+        driver.get("https://10.0.100.62:4444")
+
+        # Login
+        wait.until(EC.presence_of_element_located((By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[1]"))).send_keys("admin")
+        driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[2]").send_keys("Ipac#2023#@!253")
+        driver.find_element(By.XPATH, "/html/body/form/div/div/div[2]/div[1]/div[1]/div[1]/input[3]").click()
+        log_print("✅ Logged in successfully.")
+
+        # Navigate & download
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[1]/div[3]/nav/section[1]/ul/li[3]/a"))).click()
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[1]/div[3]/div/nav/ul/li[5]"))).click()
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[1]/div[1]/div[2]/label[1]"))).click()
+
+        # Report settings
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[1]/td[2]/label[2]").click()
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[2]/td[2]/div[1]/label").click()
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[3]/td[2]/label[1]").click()
+
+        # Search and download
+        driver.find_element(By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[1]/div/div/form/div[2]/div/table/tbody/tr[10]/td[2]/input").click()
+        wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/div[1]/section[2]/div[2]/div[2]/div[2]/div[2]/div[6]/div/div/label"))).click()
+
+        log_print(f"⬇️  Download started. Folder: {download_dir}")
+        time.sleep(10)
+
+    except TimeoutException as te:
+        log_print(f"⛔ Timeout: {te}", level="error")
+    except Exception as e:
+        log_print(f"⛔ Error: {e}", level="error")
+    finally:
+        driver.quit()
+        log_print("✅ Task complete. Browser closed.")
+
+# ✅ Schedule every 20 minutes
+schedule.every(20).minutes.do(auto_login_and_download)
+
+log_print("🚀 Scheduler started. Running every 20 minutes...")
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
+
+
+#==================================
